@@ -28,6 +28,7 @@ android {
             path "CMakeLists.txt"
         }
     }
+
 }
 
 configurations {
@@ -42,14 +43,17 @@ dependencies {
 
 
     compile 'com.android.support:multidex:1.0.1'
-    compile 'com.android.support:appcompat-v7:25.0.1'
-    compile 'com.android.support:design:25.0.1'
+    compile ('com.android.support:appcompat-v7:25.1.0'){
+        exclude module: 'support-v4'
+    }
+    compile 'com.android.support:design:25.1.0'
     testCompile 'junit:junit:4.12'
     compile ('com.google.android.gms:play-services-appindexing:9.8.0'){
         exclude module: 'support-v4'
     }
 
     compile ('com.journeyapps:zxing-android-embedded:3.4.0') {
+
         exclude module: 'support-v4'
     }
 }
