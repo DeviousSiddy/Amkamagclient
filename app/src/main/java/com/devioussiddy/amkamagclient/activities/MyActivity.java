@@ -47,6 +47,8 @@ public class MyActivity extends Activity {
     private Button ipConfirm;
     private RadioButton radioButIn;
     private TextView formatTxt, contentTxt;
+    private TextView restext;
+
     private EditText editText;
     private EditText editTextIP;
     private AsyncTask connection;
@@ -64,6 +66,7 @@ public class MyActivity extends Activity {
             }
 
             lastText = result.getText();
+            restext.setText(lastText);
             barcodeView.setStatusText(result.getText());
             beepManager.playBeepSoundAndVibrate();
 
@@ -84,7 +87,7 @@ public class MyActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         arrayList = new ArrayList<String>();
-
+        restext = (TextView) findViewById(R.id.result_text);
         editText = (EditText) findViewById(R.id.editText);
         editTextIP = (EditText) findViewById(R.id.editTextIP);
         send = (Button) findViewById(R.id.send_button);
@@ -104,7 +107,7 @@ public class MyActivity extends Activity {
         send.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
-                editText.setText(lastText);
+                restext.setText(lastText);
 
                 //sendInfo(WRITE_MODE);
 

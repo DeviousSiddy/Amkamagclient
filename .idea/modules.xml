@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/Amkamagclient.iml" filepath="$PROJECT_DIR$/Amkamagclient.iml" />
+      <module fileurl="file://$PROJECT_DIR$/AMKAmagclient.iml" filepath="$PROJECT_DIR$/AMKAmagclient.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
     </modules>
   </component>
