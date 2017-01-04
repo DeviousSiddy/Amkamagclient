@@ -15,8 +15,11 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.NumberPicker;
 import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -36,22 +39,26 @@ import java.util.List;
 
 public class MyActivity extends Activity {
     private static final String TAG = MyActivity.class.getSimpleName();
+    private static final String SRV_IP = "SRVIP";
     private DecoratedBarcodeView barcodeView;
+    private LinearLayout klant_view_lay;
     private BeepManager beepManager;
     private String lastText;
-    private Long lastTime;
+    private long lastTime =0;
+    private Dialog dialog;
     private ListView mList;
     private ArrayList<String> arrayList;
     private MyCustomAdapter mAdapter;
     private TCPClient mTcpClient;
     private String[] msgPacket = new String[]{"", "in", "Amkamagwerker", "", "0"}; // 0 = ID#, 1 = in(0)/out(1), 2 = personeel, 3 = klant, 4 = mode (0 = normal, 1 = request info list, 2 = Continuous mode, 3 = Correction,  4 = close connection)
     private Button scanBtn;
-    private Button send;
+    private Button contscanbut;
     private Button ipConfirm;
     private RadioButton radioButIn;
+    private RadioGroup radgroup;
     private TextView formatTxt, contentTxt;
     private TextView restext;
-private final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 10000002;
+    private final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 10000002;
     private EditText editText;
     private EditText editTextIP;
     private AsyncTask connection;
@@ -61,29 +68,71 @@ private final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 10000002;
     private final int SCAN_MODE = 1003;
     private final int CLOSE_MODE = 404;
     private final int CONT_MODE = 424242;
-    public  String SERVERIP = "192.168.1.9"; //your computer IP address
+    public  String SERVERIP = "192.168.1.11"; //your computer IP address
     public  final int SERVERPORT = 4444;
     private BarcodeCallback callback = new BarcodeCallback() {
         @Override
         public void barcodeResult(BarcodeResult result) {
-            Long time = System.nanoTime();
-            if(result.getText() == null||!result.getText().matches("^[A-Z]{2}\\d{4}") ) {
+            long cur_time = System.nanoTime();
+            if(result.getText() == null||
+                    !result.getText().matches("^[A-Z]{2}\\d{4}") ) {
                 // Prevent duplicate scans
 
                 return;
             }
-            else if (time-lastTime< 1e6){
-            return;
+            else if (cur_time-lastTime< 1e9){
+                return;
 
             }
 
             lastText = result.getText();
 
-            lastTime= System.nanoTime();
+            lastTime= cur_time;
             if (cont_scan_bool) {
                 cont_list.add(lastText);
+                barcodeView.setStatusText(result.getText());
             }
-            barcodeView.setStatusText(result.getText());
+            else
+            {
+
+                barcodeView.setStatusText(result.getText());
+                barcodeView.pause();
+                dialog.dismiss();
+
+                final Dialog d = new Dialog(MyActivity.this);
+                d.setTitle("Hoeveel?");
+                d.setContentView(R.layout.sin_scan);
+                d.show();
+
+                Button donebut = (Button) d.findViewById(R.id.done_but);
+                Button cancelbut = (Button) d.findViewById(R.id.cancel_but);
+                final NumberPicker aant = (NumberPicker) d.findViewById(R.id.numberPicker);
+
+                //aant.setDisplayedValues(new String[]{"1","2","3","4","5","6","7","8","9","10"});//TODO
+aant.setMinValue(1);aant.setMaxValue(100);aant.setValue(1);
+
+
+                donebut.setOnClickListener(new OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        int aantal = aant.getValue();
+                        msgPacket[0]= lastText+":"+Integer.toString(aantal);
+                        sendInfo(SCAN_MODE);
+                        d.dismiss();
+
+                    }
+                });
+                cancelbut.setOnClickListener(new OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        // Close dialog
+                       d.dismiss();
+                    }
+                });
+
+            }
+
+
             beepManager.playBeepSoundAndVibrate();
 
 //            //Added preview of scanned barcode
@@ -96,21 +145,28 @@ private final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 10000002;
         }
     };
 
+
     @Override
-    public void onCreate(Bundle savedInstanceState) {
+    public void onCreate(final Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
+        if (savedInstanceState != null) {
+            SERVERIP = savedInstanceState.getString(SRV_IP, SERVERIP);
+        }
         arrayList = new ArrayList<String>();
         cont_list = new ArrayList<String>();
 //        restext = (TextView) findViewById(R.id.result_text);
         editText = (EditText) findViewById(R.id.editText);
         editTextIP = (EditText) findViewById(R.id.editTextIP);
-        send = (Button) findViewById(R.id.send_button);
+editTextIP.setText(SERVERIP);
+        contscanbut = (Button) findViewById(R.id.cont_scan_button);
         ipConfirm = (Button) findViewById(R.id.confirm_button);
         scanBtn = (Button) findViewById(R.id.scan_button);
         radioButIn = (RadioButton) findViewById(R.id.radioButtonIn);
+        radgroup = (RadioGroup) findViewById(R.id.radioGroup);
+        klant_view_lay = (LinearLayout) findViewById(R.id.klant_edit_text);
+        klant_view_lay.setVisibility(View.GONE);
         beepManager = new BeepManager(this);
 
 
@@ -119,14 +175,36 @@ private final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 10000002;
         mAdapter = new MyCustomAdapter(this, arrayList);
         mList.setAdapter(mAdapter);
 
+        if (editTextIP.isFocused()){
+            editTextIP.clearFocus();//TODO
+        };
+        radgroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
+                                                @Override
+                                                public void onCheckedChanged(RadioGroup group, int checkedId) {
+                                                    if (checkedId == R.id.radioButtonIn){
+                                                        klant_view_lay.setVisibility(View.GONE);
+                                                    }
+                                                    else
+                                                    {
+                                                        klant_view_lay.setVisibility(View.VISIBLE);
+                                                        editText.setText("");
+                                                    }
+                                                }
+                                            }
 
+        );
 
-
-        send.setOnClickListener(new OnClickListener() {
+        contscanbut.setOnClickListener(new OnClickListener() {//TODO correctie mode
             @Override
             public void onClick(View view) {
+                if (!radioButIn.isChecked()&&editText.equals("")){
+                    return;
+                }
+                else if (!radioButIn.isChecked()){
+                    msgPacket[3]=editText.getText().toString();
+                }
                 cont_scan_bool = true;
-                final Dialog dialog = new Dialog(MyActivity.this);
+                dialog = new Dialog(MyActivity.this);
                 dialog.setTitle("Scanning...");
                 dialog.setContentView(R.layout.cont_scan);
                 dialog.show();
@@ -134,7 +212,7 @@ private final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 10000002;
 
                 barcodeView = (DecoratedBarcodeView) dialog.findViewById(R.id.barcode_scanner);
 
-barcodeView.resume();
+                barcodeView.resume();
                 barcodeView.decodeContinuous(callback);
 
                 Button donebut = (Button) dialog.findViewById(R.id.done_but);
@@ -143,11 +221,39 @@ barcodeView.resume();
                     @Override
                     public void onClick(View v) {
                         // Close dialog
+
                         if (cont_list!=null) {
-                            msgPacket[0] = TextUtils.join(";", cont_list);
+                            int cont_size = cont_list.size();
+                            ArrayList<String> items= new ArrayList<String>();
+                            ArrayList<String> aantal= new ArrayList<String>();
+                            ArrayList<String> combine = new ArrayList<String>();
+                            String x;
+                            for (int i = 0 ;i<cont_size;i++){
+                                x = cont_list.get(i);
+                                if (items.contains(x)){
+                                    int k = items.indexOf(x);
+                                    int aant = Integer.parseInt(aantal.get(k))+1;
+                                    //if (Array.getInt(aantal,k)!=null) {
+                                    //    aant = Array.getInt(aantal, k);
+                                    //}
+                                    aantal.set(k,Integer.toString(aant));
+                                }
+                                else{
+                                    items.add(x);
+                                    aantal.add("1");
+                                }
+
+                            }
+                            for (int i=0;i<items.size();i++){
+                                x = items.get(i)+":" + aantal.get(i);
+                                combine.add(x);
+                                arrayList.add("Sent " + x);
+                            }
+                            msgPacket[0] = TextUtils.join(";", combine);
                             sendInfo(CONT_MODE);
                             cont_list.clear();
                         }
+                        cont_scan_bool = false;
                         barcodeView.pause();
                         dialog.dismiss();
                     }
@@ -160,6 +266,7 @@ barcodeView.resume();
                         if (cont_list!=null) {
                             cont_list.clear();
                         }
+                        cont_scan_bool = false;
                         barcodeView.pause();
                         dialog.dismiss();
                     }
@@ -204,9 +311,10 @@ barcodeView.resume();
                 }
 
                 SERVERIP = message;
+
                 connection = new connectTask().execute("");
                 // connect to the server
-               // new connectTask().execute("");
+                // new connectTask().execute("");
                 //add the text in the arrayList
                 arrayList.add("New IP set");
                 //refresh the list
@@ -217,14 +325,38 @@ barcodeView.resume();
         scanBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                IntentIntegrator integrator = new IntentIntegrator(MyActivity.this);
-                integrator.initiateScan();
+                dialog = new Dialog(MyActivity.this);
+                dialog.setTitle("Scanning...");
+                dialog.setContentView(R.layout.cont_scan);
+                dialog.show();
+
+
+                barcodeView = (DecoratedBarcodeView) dialog.findViewById(R.id.barcode_scanner);
+
+                barcodeView.resume();
+                barcodeView.decodeSingle(callback);
+
+                Button donebut = (Button) dialog.findViewById(R.id.done_but);
+                Button cancelbut = (Button) dialog.findViewById(R.id.cancel_but);
+                donebut.setVisibility(View.GONE);
+
+                cancelbut.setOnClickListener(new OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        // Close dialog
+
+                        barcodeView.pause();
+                        dialog.dismiss();
+                    }
+                });
+                //IntentIntegrator integrator = new IntentIntegrator(MyActivity.this);
+                //integrator.initiateScan();
             }
-            });
+        });
 
     }
 
-//    @Override
+    //    @Override
 //    public void onClick(View v) {
 //        if (v.getId() == R.id.scan_button) {
 //            IntentIntegrator scanIntegrator = new IntentIntegrator(getActivity());
@@ -235,35 +367,35 @@ barcodeView.resume();
 //            mAdapter.notifyDataSetChanged();
 //        }
 //    }
-@Override
-public void onRequestPermissionsResult(int requestCode,
-                                       String permissions[], int[] grantResults) {
-    switch (requestCode) {
-        case MY_PERMISSIONS_REQUEST_READ_CONTACTS: {
-            // If request is cancelled, the result arrays are empty.
-            if (grantResults.length > 0
-                    && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case MY_PERMISSIONS_REQUEST_READ_CONTACTS: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
-                // permission was granted, yay! Do the
-                // contacts-related task you need to do.
+                    // permission was granted, yay! Do the
+                    // contacts-related task you need to do.
 
-            } else {
+                } else {
 
-                // permission denied, boo! Disable the
-                // functionality that depends on this permission.
+                    // permission denied, boo! Disable the
+                    // functionality that depends on this permission.
+                }
+                return;
             }
-            return;
-        }
 
-        // other 'case' lines to check for other
-        // permissions this app might request
+            // other 'case' lines to check for other
+            // permissions this app might request
+        }
     }
-}
-@Override
+    @Override
     public void onActivityResult(int requestCode, int resultCode, Intent intent) {
         IntentResult scanningResult = IntentIntegrator.parseActivityResult(requestCode, resultCode, intent);
         if (scanningResult != null) {
-         String scanContent = scanningResult.getContents().toString();
+            String scanContent = scanningResult.getContents().toString();
 //            String scanFormat = scanningResult.getFormatName();
             if (scanContent != null){
                 msgPacket[0]= scanContent;
@@ -282,15 +414,16 @@ public void onRequestPermissionsResult(int requestCode,
     }
     @Override
     public void onDestroy() {
-super.onDestroy();
+        super.onDestroy();
         sendInfo(CLOSE_MODE);
+
     }
     @Override
     protected void onResume() {
         super.onResume();
-if (barcodeView!=null) {
-    barcodeView.resume();
-}
+        if (barcodeView!=null) {
+            barcodeView.resume();
+        }
     }
     @Override
     public void onConfigurationChanged(Configuration newConfig){
@@ -304,18 +437,18 @@ if (barcodeView!=null) {
             barcodeView.pause();
         }
     }
-@Override
-protected  void onStart(){
-    super. onStart();
-    if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
-        ActivityCompat.requestPermissions(this,
-                new String[]{Manifest.permission.READ_CONTACTS},MY_PERMISSIONS_REQUEST_READ_CONTACTS);
+    @Override
+    protected  void onStart(){
+        super. onStart();
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.READ_CONTACTS},MY_PERMISSIONS_REQUEST_READ_CONTACTS);
 
-        // MY_PERMISSIONS_REQUEST_READ_CONTACTS is an
-        // app-defined int constant. The callback method gets the
-        // result of the request.
+            // MY_PERMISSIONS_REQUEST_READ_CONTACTS is an
+            // app-defined int constant. The callback method gets the
+            // result of the request.
+        }
     }
-}
     public void pause(View view) {
         barcodeView.pause();
     }
@@ -336,16 +469,16 @@ protected  void onStart(){
         @Override
         protected TCPClient doInBackground(String... message) {
 
-    //we create a TCPClient object and
-    mTcpClient = new TCPClient(new TCPClient.OnMessageReceived() {
-        @Override
-        //here the messageReceived method is implemented
-        public void messageReceived(String message) {
-            //this method calls the onProgressUpdate
-            publishProgress(message);
-        }
-    });
-    mTcpClient.run(SERVERIP);
+            //we create a TCPClient object and
+            mTcpClient = new TCPClient(new TCPClient.OnMessageReceived() {
+                @Override
+                //here the messageReceived method is implemented
+                public void messageReceived(String message) {
+                    //this method calls the onProgressUpdate
+                    publishProgress(message);
+                }
+            });
+            mTcpClient.run(SERVERIP);
 
             return null;
         }
@@ -358,7 +491,7 @@ protected  void onStart(){
 
             //in the arrayList we add the messaged received from server
             arrayList.add(values[0]);
-    //arrayList.add("Received.");
+            //arrayList.add("Received.");
 
             // notify the adapter that the data set has changed. This means that new message received
             // from server was added to the list
@@ -382,29 +515,31 @@ protected  void onStart(){
             // connect to the server
             connection = new connectTask().execute("");
         }
-        String message = editText.getText().toString();
+        String message;
+        //String message = editText.getText().toString();
         String inout = radioButIn.isChecked() ? "in" : "out";
         switch (sentMode) {
-            case WRITE_MODE:
-                msgPacket[0] = message;
-                msgPacket[1] = inout;
-                //add the text in the arrayList
-                arrayList.add("c: " + msgPacket[0] + " " + inout);
-                break;
+//            case WRITE_MODE:
+//                msgPacket[0] = message;
+//                msgPacket[1] = inout;
+//                //add the text in the arrayList
+//                arrayList.add("c: " + msgPacket[0] + " " + inout);
+//                break;
             case SCAN_MODE:
                 msgPacket[1] = inout;
                 //add the text in the arrayList
-                arrayList.add("c: " + msgPacket[0] + " " + inout);
+                arrayList.add("Sent: " + msgPacket[0] + " " + inout);
                 break;
             case CLOSE_MODE:
                 msgPacket[4] = "4";
                 //add the text in the arrayList
                 arrayList.add("Closing session");
-            break;
+                break;
             case CONT_MODE:
                 msgPacket[4] = "2";
                 msgPacket[1] = inout;
-                msgPacket[3] = "klant";
+                editText.setText("");
+                arrayList.add("Batch sent:" +msgPacket[0]);
                 break;
             default:
                 msgPacket = new String[]{"", "in", "Amkamagwerker", "", "0"};
@@ -423,6 +558,13 @@ protected  void onStart(){
 
         //refresh the list
         mAdapter.notifyDataSetChanged();
+
+    }
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+
+        outState.putString(SRV_IP, SERVERIP);
 
     }
 }

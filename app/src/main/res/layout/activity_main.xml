@@ -7,11 +7,12 @@
     >
 
 
-<RadioGroup
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:checkedButton="@+id/radioButtonIn"
-    android:orientation='horizontal'>
+    <RadioGroup
+        android:id = "@+id/radioGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:checkedButton="@+id/radioButtonIn"
+        android:orientation='horizontal'>
 
 
         <RadioButton
@@ -28,25 +29,25 @@
             android:layout_height="wrap_content"
             android:id="@+id/radioButtonUit"
             android:layout_weight="1" />
-        </RadioGroup>
+    </RadioGroup>
 
 
     <!--<ImageView-->
-        <!--android:layout_width="match_parent"-->
-        <!--android:layout_height="wrap_content"-->
+    <!--android:layout_width="match_parent"-->
+    <!--android:layout_height="wrap_content"-->
 
-        <!--android:id="@+id/barcodePreview" />-->
+    <!--android:id="@+id/barcodePreview" />-->
     <!--<com.journeyapps.barcodescanner.DecoratedBarcodeView-->
-        <!--android:id="@+id/barcode_scanner"-->
-        <!--android:layout_width="match_parent"-->
-        <!--android:layout_height="100dp">-->
+    <!--android:id="@+id/barcode_scanner"-->
+    <!--android:layout_width="match_parent"-->
+    <!--android:layout_height="100dp">-->
     <!--</com.journeyapps.barcodescanner.DecoratedBarcodeView>-->
 
     <!--<TextView-->
-        <!--android:text="TextView"-->
-        <!--android:layout_width="match_parent"-->
-        <!--android:layout_height="wrap_content"-->
-        <!--android:id="@+id/result_text" />-->
+    <!--android:text="TextView"-->
+    <!--android:layout_width="match_parent"-->
+    <!--android:layout_height="wrap_content"-->
+    <!--android:id="@+id/result_text" />-->
 
     <ListView android:id="@+id/list"
         android:layout_width="fill_parent"
@@ -55,30 +56,49 @@
         android:transcriptMode="alwaysScroll"
         android:cacheColorHint="#00000000"
         android:listSelector="@android:color/transparent"/>
-
-    <LinearLayout android:id="@+id/footer"
+    <LinearLayout android:id="@+id/klant_edit_text"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="bottom">
-
+        <TextView
+            android:text="Klant: "
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/result_text"
+            />
         <EditText android:inputType="textMultiLine|textNoSuggestions"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="40dp"
             android:id="@+id/editText"
-            android:layout_weight="1"/>
+            android:layout_weight="1"
+            android:hint="Klant Naam" />
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="bottom">
 
-        <Button android:layout_width="wrap_content"
+
+        <Button android:id="@+id/scan_button"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:id="@+id/send_button"
-            android:layout_gravity="center_vertical"
-            android:text="send" />
+            android:text="Scan"
+            android:layout_weight = "1"/>
+        <Button android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/cont_scan_button"
+            android:text="Cont. Scan"
+            android:layout_weight= "1"/>
+
     </LinearLayout>
     <LinearLayout android:id="@+id/footer2"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="bottom">
+        android:gravity="bottom"
+        android:focusableInTouchMode="false">
 
         <EditText android:inputType="textMultiLine|textNoSuggestions"
             android:layout_width="0dp"
@@ -92,9 +112,5 @@
             android:layout_gravity="center_vertical"
             android:text="send" />
     </LinearLayout>
-    <Button android:id="@+id/scan_button"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:text="Scan" />
+
 </LinearLayout>
